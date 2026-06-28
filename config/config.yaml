@@ -57,8 +57,18 @@ qc:
 preprocess:
   n_top_genes: 2000
   n_pcs: 50
-  batch_key: sample_id               # Harmony corrects on this; UMAP must NOT cluster by it
+  batch_key: sample_id               # scVI integrates over this; UMAP must NOT cluster by it
   target_sum: 10000
+
+# Batch integration before building the neighbour graph (project guide pitfall #3).
+# scVI (GPU) replaces Harmony, which returns a degenerate embedding in this env.
+integration:
+  method: scvi                       # scvi (multi-sample) | pca (single sample / fallback)
+  n_latent: 30
+  n_layers: 2
+  max_epochs: null                   # null -> scVI auto (fewer epochs for large datasets)
+  batch_size: 512                    # GPU; lower to 256/128 on CUDA OOM (10 GB card)
+  hvg_flavor: seurat_v3              # operates on raw counts; needs scikit-misc
 
 # Hardware tuning — set to YOUR machine. Defaults sized for the dev box:
 # AMD Ryzen 9 5950X (16C/32T) + NVIDIA RTX 3080 (10 GB), CUDA.

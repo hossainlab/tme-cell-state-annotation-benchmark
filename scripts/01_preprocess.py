@@ -7,9 +7,9 @@ The .h5ad is the cross-language handoff: Python tools read it directly,
 R tools read it via zellkonverter::readH5AD().
 
 Pipeline (project guide §9, step 2). Critical conventions enforced here:
-  - adata.raw saved BEFORE normalisation (some tools need raw counts)
+  - raw UMI counts kept in layers["counts"]; adata.raw saved after lognorm
   - loose cancer QC thresholds (mt < 20%, genes < 6000)
-  - Harmony batch correction BEFORE annotation (skipped for single-sample data)
+  - scVI batch integration BEFORE annotation (PCA fallback for single-sample data)
   - filter to non-malignant lineages using AUTHOR labels only
 
 Two input formats are handled (set per dataset in config.yaml -> format):
@@ -135,23 +135,42 @@ def qc_filter(adata: sc.AnnData, cfg: dict) -> sc.AnnData:
 
 def normalise_and_embed(adata: sc.AnnData, cfg: dict) -> sc.AnnData:
     p = cfg["preprocess"]
+    ig = cfg["integration"]
+    batch_key = p["batch_key"]
+    n_batches = adata.obs[batch_key].nunique()
+
+    # scVI needs raw UMI counts — stash them before we normalise X in place.
+    adata.layers["counts"] = adata.X.copy()
+
     sc.pp.normalize_total(adata, target_sum=p["target_sum"])
     sc.pp.log1p(adata)
-    adata.raw = adata  # save normalised counts BEFORE HVG subsetting / scaling
+    adata.raw = adata  # keep lognorm for tools/figures BEFORE HVG subsetting
 
-    sc.pp.highly_variable_genes(adata, n_top_genes=p["n_top_genes"])
-    sc.pp.pca(adata, n_comps=p["n_pcs"])
+    # HVG on raw counts (seurat_v3); batch-aware only when there is >1 sample.
+    sc.pp.highly_variable_genes(
+        adata, n_top_genes=p["n_top_genes"], flavor=ig["hvg_flavor"],
+        layer="counts", batch_key=batch_key if n_batches > 1 else None,
+    )
 
-    # Harmony batch correction BEFORE annotation (pitfall #3) — only if >1 sample.
-    # Use scanpy's wrapper: it stores X_pca_harmony with the correct orientation
-    # regardless of the harmonypy version (raw ho.Z_corr shape varies by release).
-    n_batches = adata.obs[p["batch_key"]].nunique()
-    if n_batches > 1:
-        sc.external.pp.harmony_integrate(adata, p["batch_key"], basis="X_pca",
-                                         adjusted_basis="X_pca_harmony")
-        rep = "X_pca_harmony"
+    # Batch integration BEFORE annotation (pitfall #3).
+    if n_batches > 1 and ig["method"] == "scvi":
+        import torch
+        from scvi.model import SCVI
+
+        accel = ("gpu" if cfg["compute"].get("gpu") and torch.cuda.is_available()
+                 else "cpu")
+        hvg = adata[:, adata.var.highly_variable].copy()   # scVI trains on HVGs
+        SCVI.setup_anndata(hvg, layer="counts", batch_key=batch_key)
+        model = SCVI(hvg, n_latent=ig["n_latent"], n_layers=ig["n_layers"])
+        model.train(max_epochs=ig["max_epochs"], accelerator=accel, devices=1,
+                    batch_size=ig["batch_size"])
+        adata.obsm["X_scVI"] = model.get_latent_representation()
+        print(f"scVI integration done on {accel} "
+              f"({n_batches} batches -> X_scVI {adata.obsm['X_scVI'].shape})")
+        rep = "X_scVI"
     else:
-        print(f"single batch ({n_batches}) — skipping Harmony")
+        print(f"single batch ({n_batches}) — PCA, no integration")
+        sc.pp.pca(adata, n_comps=p["n_pcs"])
         rep = "X_pca"
 
     sc.pp.neighbors(adata, use_rep=rep)

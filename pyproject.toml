@@ -14,6 +14,7 @@ dependencies = [
     "anndata",
     "scanpy",
     "scvi-tools>=1.1",
+    "scikit-misc",     # seurat_v3 HVG flavour used before scVI integration
     "celltypist",
     "scrublet",
     "harmonypy",
