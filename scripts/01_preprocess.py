@@ -36,23 +36,43 @@ from common import load_config, repo_path
 def _read_geo_text_matrix(path, chunksize: int = 1000) -> sc.AnnData:
     """Read a genes x cells .txt(.gz) UMI matrix as a cells x genes AnnData.
 
-    The full matrix (e.g. ~30k genes x ~208k cells) is far too large to hold
-    dense, so stream it in row (gene) chunks, sparsify each block, and vstack.
+    These matrices are very WIDE (~208k cell columns). pandas is pathologically
+    slow on frames that wide (per-column Python overhead), so we stream the file
+    line by line instead: each gene row is parsed with np.fromstring (C speed)
+    and its non-zeros are appended directly into a CSR matrix. Stays sparse the
+    whole way, so memory is ~the nnz, not genes*cells dense.
+
+    `chunksize` is reused here only as the progress-print interval (in genes).
     """
-    # NB: do NOT pass dtype=float to read_csv — it would also try to cast the
-    # gene-name index column ("A1BG", ...). Cast the numeric block only.
-    reader = pd.read_csv(path, sep="\t", index_col=0, chunksize=chunksize)
-    blocks, gene_names, cell_names = [], [], None
-    for chunk in reader:
-        if cell_names is None:
-            cell_names = chunk.columns.to_numpy()
-        gene_names.append(chunk.index.to_numpy())
-        blocks.append(sp.csr_matrix(chunk.to_numpy(dtype=np.float32)))   # genes(chunk) x cells
-    mat = sp.vstack(blocks).T.tocsr()                       # -> cells x genes
+    import gzip
+
+    opener = gzip.open if str(path).endswith(".gz") else open
+    indptr, indices, data, genes = [0], [], [], []
+    with opener(path, "rt") as fh:
+        cell_names = fh.readline().rstrip("\n").split("\t")[1:]   # drop "Index"
+        ncols = len(cell_names)
+        for i, line in enumerate(fh):
+            tab = line.index("\t")
+            genes.append(line[:tab])
+            vals = np.fromstring(line[tab + 1:], sep="\t", dtype=np.float32)
+            if vals.shape[0] != ncols:
+                raise ValueError(f"row {i} ({line[:tab]}) has {vals.shape[0]} "
+                                 f"values, expected {ncols}")
+            nz = np.nonzero(vals)[0]
+            indices.append(nz.astype(np.int32))
+            data.append(vals[nz])
+            indptr.append(indptr[-1] + nz.shape[0])
+            if (i + 1) % chunksize == 0:
+                print(f"  read {i + 1} genes...", flush=True)
+
+    mat = sp.csr_matrix(                                         # genes x cells
+        (np.concatenate(data), np.concatenate(indices), np.asarray(indptr)),
+        shape=(len(genes), ncols),
+    )
     adata = sc.AnnData(
-        X=mat,
+        X=mat.T.tocsr(),                                        # -> cells x genes
         obs=pd.DataFrame(index=pd.Index(cell_names, name="cell_id")),
-        var=pd.DataFrame(index=pd.Index(np.concatenate(gene_names), name="gene")),
+        var=pd.DataFrame(index=pd.Index(genes, name="gene")),
     )
     adata.var_names_make_unique()
     return adata
