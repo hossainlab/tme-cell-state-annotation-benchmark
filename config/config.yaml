@@ -96,7 +96,12 @@ tools:
   r:      [singler, azimuth, gptcelltype, scatomic]
 
 celltypist:
-  model: Pan_Human_Atlas
+  # "Pan_Human_Atlas" is NOT a real CellTypist model. Immune_All_Low is the
+  # flagship general model: 98 FINE immune subtypes (incl. macrophage / T-cell
+  # states this benchmark targets). It is immune-only — fibroblast/CAF and
+  # epithelial cells get mislabelled to the nearest immune type, which is itself
+  # an expected limitation/finding for a general immune annotator.
+  model: Immune_All_Low.pkl
   majority_voting: true
 
 gptcelltype:
