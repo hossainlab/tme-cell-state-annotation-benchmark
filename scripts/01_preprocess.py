@@ -143,11 +143,12 @@ def normalise_and_embed(adata: sc.AnnData, cfg: dict) -> sc.AnnData:
     sc.pp.pca(adata, n_comps=p["n_pcs"])
 
     # Harmony batch correction BEFORE annotation (pitfall #3) — only if >1 sample.
+    # Use scanpy's wrapper: it stores X_pca_harmony with the correct orientation
+    # regardless of the harmonypy version (raw ho.Z_corr shape varies by release).
     n_batches = adata.obs[p["batch_key"]].nunique()
     if n_batches > 1:
-        import harmonypy as hm
-        ho = hm.run_harmony(adata.obsm["X_pca"], adata.obs, p["batch_key"])
-        adata.obsm["X_pca_harmony"] = ho.Z_corr.T
+        sc.external.pp.harmony_integrate(adata, p["batch_key"], basis="X_pca",
+                                         adjusted_basis="X_pca_harmony")
         rep = "X_pca_harmony"
     else:
         print(f"single batch ({n_batches}) — skipping Harmony")
