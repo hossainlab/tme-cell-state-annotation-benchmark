@@ -9,6 +9,75 @@
 
 ---
 
+## 🔬 Workflow at a glance
+
+```mermaid
+flowchart TB
+    accTitle: TME Cell-State Annotation Benchmark Workflow
+    accDescr: Three single-cell datasets are preprocessed into AnnData objects, annotated by six tools spanning Python and R, scored at three label-granularity levels from lineage to functional state, and summarised as a per-tool TME degradation score with figures and a decision guide.
+
+    subgraph data ["📥 Datasets"]
+        zheng["🩸 Zheng68K PBMC<br/>healthy ceiling"]
+        lung["🫁 GSE131907<br/>lung adenocarcinoma"]
+        crc["🧬 GSE132465<br/>colorectal"]
+    end
+
+    prep["⚙️ Preprocess<br/>QC · Harmony · raw counts kept"]
+    full["📦 processed.h5ad<br/>all cells"]
+    tme["🧫 tme.h5ad<br/>non-malignant only"]
+
+    subgraph general ["Annotation tools — run zero-shot, healthy references"]
+        direction LR
+        subgraph py ["🐍 Python"]
+            celltypist["CellTypist"]
+            scgpt["scGPT"]
+        end
+        subgraph rlang ["📊 R"]
+            singler["SingleR"]
+            azimuth["Azimuth"]
+            gptct["GPTCelltype"]
+        end
+    end
+    scatomic["🎯 scATOMIC<br/>cancer-specialised · sees all cells"]
+
+    preds["🗂️ predictions CSV<br/>cell_id, predicted_label"]
+
+    subgraph eval ["📐 Evaluation — three granularity levels"]
+        direction LR
+        l1["L1 · lineage"]
+        l2["L2 · subtype"]
+        l3["L3 · functional state"]
+    end
+
+    degr["📉 TME degradation score<br/>healthy − cancer @ L3"]
+    figs["📈 Figures + decision guide"]
+
+    zheng --> prep
+    lung --> prep
+    crc --> prep
+    prep --> full
+    prep --> tme
+    tme --> general
+    full --> scatomic
+    general --> preds
+    scatomic --> preds
+    preds --> eval
+    eval --> degr
+    degr --> figs
+
+    classDef dataset fill:#dbeafe,stroke:#2563eb,stroke-width:2px,color:#1e3a5f
+    classDef process fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
+    classDef tool fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#3b0764
+    classDef output fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+
+    class zheng,lung,crc dataset
+    class prep,full,tme,preds process
+    class celltypist,scgpt,singler,azimuth,gptct,scatomic tool
+    class l1,l2,l3,degr,figs output
+```
+
+---
+
 ## Overview
 
 Automated cell-type annotation tools report 80–90% accuracy — but almost always on **healthy reference tissue**, and almost always at the **coarse lineage level** (*"T cell", "macrophage", "fibroblast"*). The clinically decisive distinctions in cancer live one level deeper: a *precursor-exhausted* CD8⁺ T cell (Tpex) predicts response to PD-1 blockade, while a *terminally exhausted* one (Tex) does not; an *SPP1⁺* tumour-associated macrophage promotes metastasis, while an *FOLR2⁺* one tracks with better outcomes; an *inflammatory* CAF (iCAF) shapes immune exclusion differently from a *myofibroblastic* CAF (myCAF).
