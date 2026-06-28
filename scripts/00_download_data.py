@@ -1,8 +1,8 @@
 """Download raw datasets into data/raw/<dataset>/.
 
 Usage:
-    python scripts/python/00_download_data.py GSE131907
-    python scripts/python/00_download_data.py GSE132465
+    python scripts/00_download_data.py GSE131907
+    python scripts/00_download_data.py GSE132465
 
 Zheng68K is fetched in-code via scanpy (sc.datasets.pbmc68k_reduced) or
 downloaded manually from 10x Genomics; no GEO mirror needed.

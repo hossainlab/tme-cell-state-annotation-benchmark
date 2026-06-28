@@ -7,7 +7,7 @@ scGPT installs separately and needs a GPU + a downloaded pretrained checkpoint
 weights are in place. Ground-truth labels are never revealed (§7.2).
 
 Usage:
-    python scripts/python/03_run_scgpt.py GSE131907
+    python scripts/03_run_scgpt.py GSE131907
 """
 from __future__ import annotations
 

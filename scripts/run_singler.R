@@ -2,13 +2,13 @@
 # Two references (HPCA + Blueprint/Encode) -> two prediction files.
 # Ground-truth labels are never used (project guide §7.2).
 #
-# Usage: Rscript scripts/r/run_singler.R GSE131907
+# Usage: Rscript scripts/run_singler.R GSE131907
 
 suppressMessages({
   library(SingleR)
   library(celldex)
 })
-source(file.path("scripts", "r", "common.R"))
+source(file.path("scripts", "common.R"))
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1) stop("usage: Rscript run_singler.R <dataset>")

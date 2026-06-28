@@ -1,17 +1,17 @@
 # Shared R helpers: config loading, .h5ad import, prediction output.
-# Mirrors scripts/python/common.py so both languages stay consistent.
+# Mirrors scripts/common.py so both languages stay consistent.
 
 suppressMessages({
   library(yaml)
 })
 
-repo_root <- function() {
-  # this file lives at scripts/r/common.R
-  normalizePath(file.path(dirname(sys.frame(1)$ofile %||% "scripts/r/common.R"),
-                          "..", ".."))
-}
-
 `%||%` <- function(a, b) if (is.null(a)) b else a
+
+repo_root <- function() {
+  # this file lives at scripts/common.R
+  normalizePath(file.path(dirname(sys.frame(1)$ofile %||% "scripts/common.R"),
+                          ".."))
+}
 
 load_config <- function() {
   yaml::read_yaml(file.path(repo_root(), "config", "config.yaml"))

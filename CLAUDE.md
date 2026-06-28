@@ -12,8 +12,7 @@ A single-cell RNA-seq **benchmarking research project** (pre-PhD preprint, targe
 
 - `docs/project_guide.md` — complete project spec, source of truth for all science decisions.
 - `config/config.yaml` — single config both languages read: dataset paths, QC thresholds, the 3 label-granularity levels, label maps, per-tool settings. Edit here, not in scripts.
-- `scripts/python/` — preprocessing, the Python tools, metrics, figures. Run in numbered order (`00`→`05`). `common.py` holds config/path/label-level helpers.
-- `scripts/r/` — the R tools (`run_singler.R`, `run_azimuth.R`, `run_gptcelltype.R`, `run_scatomic.R`). `common.R` mirrors `common.py`.
+- `scripts/` — all scripts, both languages, flat (no per-language subfolders). Python: numbered `00`→`05` (download, preprocess, CellTypist, scGPT, metrics, figures) + `common.py`. R: `run_singler.R`, `run_azimuth.R`, `run_gptcelltype.R`, `run_scatomic.R` + `common.R` (mirrors `common.py`).
 - `run_all.sh <dataset>` — runs the whole chain in order for one dataset.
 - `envs/environment.yml` (conda/Python) + `envs/install_r.R` (Bioconductor/GitHub).
 - `data/raw/`, `results/{predictions,metrics,figures}/` — gitignored outputs (`.gitkeep` only).
@@ -27,7 +26,7 @@ A single-cell RNA-seq **benchmarking research project** (pre-PhD preprint, targe
 The benchmark is a **multi-tool, multi-dataset, multi-granularity comparison**. Understanding the design requires holding several axes at once:
 
 - **Datasets:** GSE131907 (lung adenocarcinoma, primary ground truth), GSE132465 (colorectal, replication), Zheng68K PBMC (healthy accuracy ceiling). Optional: Werba 2023 PDAC.
-- **Tools span two languages.** Python (`scripts/python/`): CellTypist, scGPT, plus all preprocessing/metrics/figures (scanpy). R/Bioconductor (`scripts/r/`): SingleR, Azimuth, GPTCelltype, scATOMIC. Handoff is via AnnData `.h5ad` ↔ SingleCellExperiment/Seurat (zellkonverter).
+- **Tools span two languages** (all under `scripts/`, flat). Python: CellTypist, scGPT, plus all preprocessing/metrics/figures (scanpy). R/Bioconductor: SingleR, Azimuth, GPTCelltype, scATOMIC. Handoff is via AnnData `.h5ad` ↔ SingleCellExperiment/Seurat (zellkonverter).
 - **Evaluation runs at 3 label-granularity levels** (project guide §7.3): Level 1 coarse lineage, Level 2 medium subtype, Level 3 fine/functional state. The whole hypothesis is that accuracy is high at L1 and collapses at L3 — so metrics must always be computed per-level.
 - **Core output metric:** "TME degradation score" = `Accuracy(Zheng68K) − Accuracy(GSE131907, Level 3)` per tool.
 

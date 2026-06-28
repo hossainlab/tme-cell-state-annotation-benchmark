@@ -13,7 +13,7 @@ Stub: wire each figure to results/metrics/ + results/predictions/ once those
 tables are populated. Kept thin so the structure is clear.
 
 Usage:
-    python scripts/python/05_make_figures.py
+    python scripts/05_make_figures.py
 """
 from __future__ import annotations
 

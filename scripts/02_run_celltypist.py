@@ -4,7 +4,7 @@ Writes results/predictions/<dataset>__celltypist.csv  (cell_id, predicted_label)
 Ground-truth labels are NEVER passed to the model (project guide §7.2).
 
 Usage:
-    python scripts/python/02_run_celltypist.py GSE131907
+    python scripts/02_run_celltypist.py GSE131907
 """
 from __future__ import annotations
 

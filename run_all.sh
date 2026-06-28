@@ -7,27 +7,26 @@
 set -euo pipefail
 
 DATASET="${1:?usage: ./run_all.sh <dataset>}"
-PY=scripts/python
-R=scripts/r
+S=scripts
 
 echo "== [$DATASET] download =="
-python "$PY/00_download_data.py" "$DATASET"
+python "$S/00_download_data.py" "$DATASET"
 
 echo "== [$DATASET] preprocess (QC, normalise, Harmony, TME subset) =="
-python "$PY/01_preprocess.py" "$DATASET"
+python "$S/01_preprocess.py" "$DATASET"
 
 echo "== [$DATASET] Python tools =="
-python "$PY/02_run_celltypist.py" "$DATASET"
-python "$PY/03_run_scgpt.py" "$DATASET" || echo "scgpt skipped (needs checkpoint/GPU)"
+python "$S/02_run_celltypist.py" "$DATASET"
+python "$S/03_run_scgpt.py" "$DATASET" || echo "scgpt skipped (needs checkpoint/GPU)"
 
 echo "== [$DATASET] R tools =="
-Rscript "$R/run_singler.R"     "$DATASET"
-Rscript "$R/run_azimuth.R"     "$DATASET"
-Rscript "$R/run_gptcelltype.R" "$DATASET"
-Rscript "$R/run_scatomic.R"    "$DATASET"
+Rscript "$S/run_singler.R"     "$DATASET"
+Rscript "$S/run_azimuth.R"     "$DATASET"
+Rscript "$S/run_gptcelltype.R" "$DATASET"
+Rscript "$S/run_scatomic.R"    "$DATASET"
 
 echo "== [$DATASET] metrics + figures =="
-python "$PY/04_compute_metrics.py" "$DATASET"
-python "$PY/05_make_figures.py"
+python "$S/04_compute_metrics.py" "$DATASET"
+python "$S/05_make_figures.py"
 
 echo "done: results/metrics/${DATASET}_metrics.csv, results/figures/"

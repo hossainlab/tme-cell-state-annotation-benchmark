@@ -5,14 +5,14 @@
 #     cancer-context effect
 # Needs OPENAI_API_KEY in the environment.
 #
-# Usage: Rscript scripts/r/run_gptcelltype.R GSE131907
+# Usage: Rscript scripts/run_gptcelltype.R GSE131907
 
 suppressMessages({
   library(Seurat)
   library(GPTCelltype)
   library(dplyr)
 })
-source(file.path("scripts", "r", "common.R"))
+source(file.path("scripts", "common.R"))
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1) stop("usage: Rscript run_gptcelltype.R <dataset>")

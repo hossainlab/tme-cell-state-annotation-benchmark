@@ -13,7 +13,7 @@ Pipeline (project guide §9, step 2). Critical conventions enforced here:
   - filter to non-malignant lineages using AUTHOR labels only
 
 Usage:
-    python scripts/python/01_preprocess.py GSE131907
+    python scripts/01_preprocess.py GSE131907
 """
 from __future__ import annotations
 

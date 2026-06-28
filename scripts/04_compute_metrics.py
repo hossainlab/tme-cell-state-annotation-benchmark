@@ -13,7 +13,7 @@ Conventions (project guide §8, §12):
   - TME degradation score (vs Zheng68K) is computed in 05/figures, not here.
 
 Usage:
-    python scripts/python/04_compute_metrics.py GSE131907
+    python scripts/04_compute_metrics.py GSE131907
 """
 from __future__ import annotations
 

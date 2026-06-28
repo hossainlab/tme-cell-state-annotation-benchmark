@@ -3,14 +3,14 @@
 # non-malignant) because identifying malignant cells is part of its job. We then
 # keep only its non-malignant predictions for the benchmark comparison.
 #
-# Usage: Rscript scripts/r/run_scatomic.R GSE131907
+# Usage: Rscript scripts/run_scatomic.R GSE131907
 
 suppressMessages({
   library(scATOMIC)
   library(zellkonverter)
   library(SingleCellExperiment)
 })
-source(file.path("scripts", "r", "common.R"))
+source(file.path("scripts", "common.R"))
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1) stop("usage: Rscript run_scatomic.R <dataset>")
