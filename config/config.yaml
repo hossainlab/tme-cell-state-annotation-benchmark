@@ -9,36 +9,44 @@ paths:
   figures: results/figures
 
 datasets:
+  # Column names below are the ACTUAL headers in the downloaded annotation files
+  # (verified against the data), not the paper's prose names.
   GSE131907:                          # primary ground truth — lung adenocarcinoma
     role: primary
-    h5_glob: data/raw/GSE131907/*.h5
-    annotation: data/raw/GSE131907/GSE131907_cell_annotation.txt
+    format: geo_text_matrix           # genes x cells .txt.gz; header "Index" + barcode cols
+    matrix: data/raw/GSE131907/GSE131907_Lung_Cancer_raw_UMI_matrix.txt.gz
+    annotation: data/raw/GSE131907/GSE131907_Lung_Cancer_cell_annotation.txt.gz
     annotation_sep: "\t"
-    truth_column: Cell_type           # finest available author label (NOT a broad label)
-    condition_column: Sample_type     # tumour / normal / LN / PE
-    sample_column: Patient
+    barcode_column: Index             # annotation col matching the matrix column names
+    truth_column: Cell_subtype        # FINEST author label (e.g. mo-Mac), not broad Cell_type
+    lineage_column: Cell_type         # broad lineage, used only for the non-malignant filter
+    condition_column: Sample_Origin   # nLung/tLung/nLN/mLN/mBrain/PE/tL-B
+    sample_column: Sample             # batch key for Harmony (e.g. LUNG_N01)
+    exclude_lineages: ["Epithelial cells", "Undetermined"]   # drop malignant + junk
     download_url: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE131nnn/GSE131907/suppl/"
   GSE132465:                          # replication — colorectal
     role: replication
+    format: geo_text_matrix
     matrix: data/raw/GSE132465/GSE132465_GEO_processed_CRC_10X_raw_UMI_count_matrix.txt.gz
     annotation: data/raw/GSE132465/GSE132465_GEO_processed_CRC_10X_cell_annotation.txt.gz
     annotation_sep: "\t"
+    barcode_column: Index
     truth_column: Cell_subtype
-    sample_column: Patient
+    lineage_column: Cell_type
+    condition_column: Class           # Tumor / Normal
+    sample_column: Sample             # e.g. SMC01-T
+    exclude_lineages: ["Epithelial cells"]
     download_url: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE132nnn/GSE132465/suppl/"
   Zheng68K:                           # healthy accuracy ceiling
     role: healthy_baseline
-    note: "10x Fresh 68k PBMC Donor A; or sc.datasets.pbmc68k_reduced() for a quick subsample"
-
-# Non-malignant lineages kept before running general tools (pitfall #1).
-# Cancer cells are excluded so they cannot inflate false positives.
-non_malignant_lineages:
-  - T cell
-  - B cell
-  - Myeloid
-  - NK
-  - Fibroblast
-  - Endothelial
+    format: tenx_mtx                  # 10x MatrixMarket triplet + separate label tsv
+    mtx_dir: data/raw/Zheng68K/filtered_matrices_mex/hg19
+    annotation: data/raw/Zheng68K/68k_pbmc_barcodes_annotation.tsv
+    annotation_sep: "\t"
+    barcode_column: barcodes
+    truth_column: celltype
+    sample_column: null               # single sample — no batch correction needed
+    exclude_lineages: []              # healthy PBMC: nothing to exclude
 
 # QC thresholds — deliberately loose for cancer (pitfall, cancer cells are active).
 qc:

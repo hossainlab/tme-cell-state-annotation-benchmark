@@ -9,8 +9,14 @@ R tools read it via zellkonverter::readH5AD().
 Pipeline (project guide §9, step 2). Critical conventions enforced here:
   - adata.raw saved BEFORE normalisation (some tools need raw counts)
   - loose cancer QC thresholds (mt < 20%, genes < 6000)
-  - Harmony batch correction BEFORE annotation
+  - Harmony batch correction BEFORE annotation (skipped for single-sample data)
   - filter to non-malignant lineages using AUTHOR labels only
+
+Two input formats are handled (set per dataset in config.yaml -> format):
+  - geo_text_matrix : a genes x cells .txt.gz UMI matrix (GSE131907, GSE132465).
+                      Too large to hold dense, so read in gene chunks into a
+                      sparse matrix, then transpose to cells x genes.
+  - tenx_mtx        : a 10x MatrixMarket triplet + a separate label tsv (Zheng68K).
 
 Usage:
     python scripts/01_preprocess.py GSE131907
@@ -19,38 +25,77 @@ from __future__ import annotations
 
 import sys
 
+import numpy as np
 import pandas as pd
 import scanpy as sc
+import scipy.sparse as sp
 
 from common import load_config, repo_path
 
 
-def load_raw(cfg: dict, dataset: str) -> sc.AnnData:
-    """Load per-sample matrices and join author annotations.
+def _read_geo_text_matrix(path, chunksize: int = 1000) -> sc.AnnData:
+    """Read a genes x cells .txt(.gz) UMI matrix as a cells x genes AnnData.
 
-    TODO: GSE131907 ships per-sample .h5 files; GSE132465 ships one big matrix.
-    Branch on dataset spec. This stub shows the GSE131907 shape from the guide.
+    The full matrix (e.g. ~30k genes x ~208k cells) is far too large to hold
+    dense, so stream it in row (gene) chunks, sparsify each block, and vstack.
     """
+    reader = pd.read_csv(path, sep="\t", index_col=0, chunksize=chunksize,
+                         dtype=np.float32)
+    blocks, gene_names, cell_names = [], [], None
+    for chunk in reader:
+        if cell_names is None:
+            cell_names = chunk.columns.to_numpy()
+        gene_names.append(chunk.index.to_numpy())
+        blocks.append(sp.csr_matrix(chunk.to_numpy()))      # genes(chunk) x cells
+    mat = sp.vstack(blocks).T.tocsr()                       # -> cells x genes
+    adata = sc.AnnData(
+        X=mat,
+        obs=pd.DataFrame(index=pd.Index(cell_names, name="cell_id")),
+        var=pd.DataFrame(index=pd.Index(np.concatenate(gene_names), name="gene")),
+    )
+    adata.var_names_make_unique()
+    return adata
+
+
+def _read_tenx_mtx(spec: dict) -> sc.AnnData:
+    """Read a 10x MatrixMarket triplet (matrix.mtx + barcodes.tsv + genes.tsv)."""
+    mtx_dir = repo_path(spec["mtx_dir"])
+    adata = sc.read_mtx(mtx_dir / "matrix.mtx").T            # mtx is genes x cells
+    barcodes = pd.read_csv(mtx_dir / "barcodes.tsv", header=None)[0].to_numpy()
+    genes = pd.read_csv(mtx_dir / "genes.tsv", header=None, sep="\t")
+    adata.obs_names = barcodes
+    adata.var_names = genes[1].to_numpy() if genes.shape[1] > 1 else genes[0].to_numpy()
+    adata.var_names_make_unique()
+    return adata
+
+
+def load_raw(cfg: dict, dataset: str) -> sc.AnnData:
+    """Load the count matrix and join author annotations on the barcode column."""
     spec = cfg["datasets"][dataset]
-    raw_dir = repo_path(cfg["paths"]["data_raw"], dataset)
+    fmt = spec["format"]
+    if fmt == "geo_text_matrix":
+        adata = _read_geo_text_matrix(repo_path(spec["matrix"]))
+    elif fmt == "tenx_mtx":
+        adata = _read_tenx_mtx(spec)
+    else:
+        sys.exit(f"unknown format {fmt!r} for {dataset}")
 
-    h5_files = sorted(raw_dir.glob("*.h5"))
-    if not h5_files:
-        sys.exit(f"no .h5 under {raw_dir} — run 00_download_data.py first")
+    ann = pd.read_csv(repo_path(spec["annotation"]), sep=spec["annotation_sep"])
+    ann = ann.set_index(spec["barcode_column"])
+    keep = [c for c in (spec.get("truth_column"), spec.get("lineage_column"),
+                        spec.get("condition_column"), spec.get("sample_column"))
+            if c and c in ann.columns]
+    adata.obs = adata.obs.join(ann[keep].reindex(adata.obs_names))
 
-    adatas = []
-    for h5 in h5_files:
-        a = sc.read_10x_h5(h5)
-        a.var_names_make_unique()
-        a.obs["sample_id"] = h5.stem
-        adatas.append(a)
-    adata = sc.concat(adatas)
+    # Standardise the batch key the rest of the pipeline expects.
+    sample_col = spec.get("sample_column")
+    adata.obs["sample_id"] = (adata.obs[sample_col].astype(str)
+                              if sample_col else dataset)
 
-    ann = pd.read_csv(spec["annotation"], sep=spec["annotation_sep"], index_col=0)
-    # Keep the FINEST author label as ground truth (pitfall #2). Plus condition.
-    keep = [c for c in (spec["truth_column"], spec.get("condition_column"),
-                        spec.get("sample_column")) if c and c in ann.columns]
-    adata.obs = adata.obs.join(ann[keep])
+    n_missing = int(adata.obs[spec["truth_column"]].isna().sum())
+    if n_missing:
+        print(f"warning: {n_missing}/{adata.n_obs} cells lack a ground-truth label "
+              "(barcode mismatch between matrix and annotation?)")
     return adata
 
 
@@ -62,7 +107,7 @@ def qc_filter(adata: sc.AnnData, cfg: dict) -> sc.AnnData:
     adata = adata[adata.obs.n_genes_by_counts > q["min_genes"]]
     adata = adata[adata.obs.n_genes_by_counts < q["max_genes"]]
     adata = adata[adata.obs.pct_counts_mt < q["max_pct_mt"]]
-    # TODO: per-sample Scrublet doublet removal here, BEFORE the concat ideally.
+    # TODO: per-sample Scrublet doublet removal could be added here.
     return adata.copy()
 
 
@@ -70,17 +115,23 @@ def normalise_and_embed(adata: sc.AnnData, cfg: dict) -> sc.AnnData:
     p = cfg["preprocess"]
     sc.pp.normalize_total(adata, target_sum=p["target_sum"])
     sc.pp.log1p(adata)
-    adata.raw = adata  # save normalised+raw BEFORE HVG subsetting / scaling
+    adata.raw = adata  # save normalised counts BEFORE HVG subsetting / scaling
 
     sc.pp.highly_variable_genes(adata, n_top_genes=p["n_top_genes"])
     sc.pp.pca(adata, n_comps=p["n_pcs"])
 
-    # Harmony batch correction BEFORE annotation (pitfall #3).
-    import harmonypy as hm
-    ho = hm.run_harmony(adata.obsm["X_pca"], adata.obs, p["batch_key"])
-    adata.obsm["X_pca_harmony"] = ho.Z_corr.T
+    # Harmony batch correction BEFORE annotation (pitfall #3) — only if >1 sample.
+    n_batches = adata.obs[p["batch_key"]].nunique()
+    if n_batches > 1:
+        import harmonypy as hm
+        ho = hm.run_harmony(adata.obsm["X_pca"], adata.obs, p["batch_key"])
+        adata.obsm["X_pca_harmony"] = ho.Z_corr.T
+        rep = "X_pca_harmony"
+    else:
+        print(f"single batch ({n_batches}) — skipping Harmony")
+        rep = "X_pca"
 
-    sc.pp.neighbors(adata, use_rep="X_pca_harmony")
+    sc.pp.neighbors(adata, use_rep=rep)
     sc.tl.umap(adata)
     # Sanity check to run interactively: UMAP must NOT cluster by sample_id.
     return adata
@@ -88,6 +139,7 @@ def normalise_and_embed(adata: sc.AnnData, cfg: dict) -> sc.AnnData:
 
 def main(dataset: str) -> None:
     cfg = load_config()
+    spec = cfg["datasets"][dataset]
     out_dir = repo_path(cfg["paths"]["data_raw"], dataset)
 
     adata = load_raw(cfg, dataset)
@@ -96,14 +148,17 @@ def main(dataset: str) -> None:
 
     processed = out_dir / f"{dataset}_processed.h5ad"
     adata.write_h5ad(processed)
-    print("wrote", processed)
+    print("wrote", processed, f"({adata.n_obs} cells)")
 
-    # Non-malignant subset for the general tools (pitfall #1).
-    truth_col = cfg["datasets"][dataset]["truth_column"]
-    lineages = cfg["non_malignant_lineages"]
-    # TODO: replace with the dataset's actual broad-lineage column once confirmed.
-    mask = adata.obs[truth_col].astype(str).str.contains("|".join(lineages), case=False)
-    tme = adata[mask].copy()
+    # Non-malignant subset for the general tools (pitfall #1): drop the malignant
+    # / junk lineages named per dataset; keep everything else.
+    lineage_col = spec.get("lineage_column")
+    exclude = spec.get("exclude_lineages", []) or []
+    if lineage_col and lineage_col in adata.obs:
+        mask = ~adata.obs[lineage_col].astype(str).isin(exclude)
+    else:
+        mask = pd.Series(True, index=adata.obs_names)  # healthy: keep all
+    tme = adata[mask.values].copy()
     tme_path = out_dir / f"{dataset}_tme.h5ad"
     tme.write_h5ad(tme_path)
     print("wrote", tme_path, f"({tme.n_obs} non-malignant cells)")
