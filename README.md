@@ -169,29 +169,100 @@ CLAUDE.md          engineering conventions and validity invariants
 
 ## Getting started
 
-**Python environment** (managed with [uv](https://github.com/astral-sh/uv)):
+### 0. Install environments (once)
+
+**System libraries** (apt, needs sudo) — required to compile the R tool chain:
 
 ```bash
-uv sync                                    # builds .venv from the lockfile (Python 3.10)
+sudo apt-get install -y libgsl-dev libhdf5-dev libfftw3-dev
 ```
 
-**R environment** (the four R-based tools):
+**Python** (managed with [uv](https://github.com/astral-sh/uv)):
 
 ```bash
-mkdir -p ~/R/x86_64-pc-linux-gnu-library/4.4   # writable user library
-Rscript envs/install_r.R                        # SingleR, celldex, Azimuth, Seurat,
-                                                # zellkonverter, GPTCelltype, scATOMIC
-export OPENAI_API_KEY=...                        # required by GPTCelltype
+uv sync                                          # builds .venv from the lockfile (Python 3.10)
 ```
 
-**Run the benchmark for one dataset:**
+**R** (the four R-based tools):
 
 ```bash
-./run_all.sh GSE131907
-# → results/metrics/GSE131907_metrics.csv  and  results/figures/
+mkdir -p ~/R/x86_64-pc-linux-gnu-library/4.4     # writable user library
+Rscript envs/install_r.R                          # SingleR, Azimuth, GPTCelltype, scATOMIC, …
+uv pip install magic-impute                       # python backend Rmagic needs (for scATOMIC)
+export OPENAI_API_KEY=...                          # required by GPTCelltype
 ```
 
-> scGPT is installed in a separate environment (it pins an older `scvi-tools`; see `pyproject.toml`).
+### 1. Download data
+
+See **[`docs/data_download.md`](docs/data_download.md)** for exact `wget` commands. Files land under
+`data/raw/<dataset>/` and are gitignored.
+
+### Tune for your machine
+
+Edit the `compute:` block in `config.yaml` — set `n_cores` to your physical core
+count, `gpu`/`device` for scGPT, `read_chunksize` to taste. Defaults target a
+16-core / RTX 3080 box.
+
+---
+
+## Running the pipeline step by step
+
+> **Argument is the dataset NAME, not a path** — one of `GSE131907`, `GSE132465`, `Zheng68K`
+> (the keys in `config.yaml`). Passing a path produces a confusing "file not found".
+> Always run scripts through `uv run` so they use the project `.venv`.
+
+The steps are ordered and each depends on the previous. Run them per dataset.
+
+```bash
+DS=Zheng68K        # or GSE131907 (lung) / GSE132465 (colorectal)
+```
+
+**Step 1 — Preprocess** (QC, normalise, Harmony, write the `.h5ad` handoff):
+
+```bash
+uv run python scripts/01_preprocess.py $DS
+# → data/raw/$DS/${DS}_processed.h5ad  (all cells)
+# → data/raw/$DS/${DS}_tme.h5ad        (non-malignant cells, input to the general tools)
+```
+
+**Step 2 — Run the annotation tools** (each writes `results/predictions/${DS}__<tool>.csv`).
+Order among tools does not matter; they all read the `.h5ad` from step 1:
+
+```bash
+# Python tools
+uv run python scripts/02_run_celltypist.py $DS
+uv run python scripts/03_run_scgpt.py      $DS        # needs scGPT env + GPU
+
+# R tools
+Rscript scripts/run_singler.R     $DS
+Rscript scripts/run_azimuth.R     $DS
+Rscript scripts/run_gptcelltype.R $DS                 # needs OPENAI_API_KEY
+Rscript scripts/run_scatomic.R    $DS                 # reads *_processed.h5ad (all cells)
+```
+
+**Step 3 — Score every tool** at the three granularity levels:
+
+```bash
+uv run python scripts/04_compute_metrics.py $DS
+# → results/metrics/${DS}_metrics.csv
+```
+
+**Step 4 — Figures** (reads all metrics + predictions):
+
+```bash
+uv run python scripts/05_make_figures.py
+# → results/figures/
+```
+
+### Shortcut — whole chain for one dataset
+
+```bash
+./run_all.sh GSE131907        # runs steps 1 → 4 in order
+```
+
+> scGPT runs in a separate environment (it pins an older `scvi-tools`; see `pyproject.toml`).
+> If a tool's env is not ready, skip its line — `04_compute_metrics.py` scores whatever
+> prediction files exist.
 
 ## Planned deliverables
 
