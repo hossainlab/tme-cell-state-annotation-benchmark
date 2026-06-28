@@ -233,3 +233,8 @@ results/figures/*
 *.loom
 *.mtx
 *.mtx.gz
+
+# Model checkpoints (e.g. scGPT whole-human) and the separate scGPT venv
+models/
+.venv-scgpt/
+*.pt
