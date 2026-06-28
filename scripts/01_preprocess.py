@@ -39,14 +39,15 @@ def _read_geo_text_matrix(path, chunksize: int = 1000) -> sc.AnnData:
     The full matrix (e.g. ~30k genes x ~208k cells) is far too large to hold
     dense, so stream it in row (gene) chunks, sparsify each block, and vstack.
     """
-    reader = pd.read_csv(path, sep="\t", index_col=0, chunksize=chunksize,
-                         dtype=np.float32)
+    # NB: do NOT pass dtype=float to read_csv — it would also try to cast the
+    # gene-name index column ("A1BG", ...). Cast the numeric block only.
+    reader = pd.read_csv(path, sep="\t", index_col=0, chunksize=chunksize)
     blocks, gene_names, cell_names = [], [], None
     for chunk in reader:
         if cell_names is None:
             cell_names = chunk.columns.to_numpy()
         gene_names.append(chunk.index.to_numpy())
-        blocks.append(sp.csr_matrix(chunk.to_numpy()))      # genes(chunk) x cells
+        blocks.append(sp.csr_matrix(chunk.to_numpy(dtype=np.float32)))   # genes(chunk) x cells
     mat = sp.vstack(blocks).T.tocsr()                       # -> cells x genes
     adata = sc.AnnData(
         X=mat,
