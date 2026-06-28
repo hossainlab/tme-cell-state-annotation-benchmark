@@ -1,0 +1,75 @@
+# Central config for the TME annotation benchmark.
+# Both Python and R scripts read this so dataset paths, label maps,
+# and granularity levels stay consistent across languages.
+
+paths:
+  data_raw: data/raw
+  predictions: results/predictions   # one file per tool: <dataset>__<tool>.csv (cell_id, predicted_label)
+  metrics: results/metrics
+  figures: results/figures
+
+datasets:
+  GSE131907:                          # primary ground truth — lung adenocarcinoma
+    role: primary
+    h5_glob: data/raw/GSE131907/*.h5
+    annotation: data/raw/GSE131907/GSE131907_cell_annotation.txt
+    annotation_sep: "\t"
+    truth_column: Cell_type           # finest available author label (NOT a broad label)
+    condition_column: Sample_type     # tumour / normal / LN / PE
+    sample_column: Patient
+    download_url: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE131nnn/GSE131907/suppl/"
+  GSE132465:                          # replication — colorectal
+    role: replication
+    matrix: data/raw/GSE132465/GSE132465_GEO_processed_CRC_10X_raw_UMI_count_matrix.txt.gz
+    annotation: data/raw/GSE132465/GSE132465_GEO_processed_CRC_10X_cell_annotation.txt.gz
+    annotation_sep: "\t"
+    truth_column: Cell_subtype
+    sample_column: Patient
+    download_url: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE132nnn/GSE132465/suppl/"
+  Zheng68K:                           # healthy accuracy ceiling
+    role: healthy_baseline
+    note: "10x Fresh 68k PBMC Donor A; or sc.datasets.pbmc68k_reduced() for a quick subsample"
+
+# Non-malignant lineages kept before running general tools (pitfall #1).
+# Cancer cells are excluded so they cannot inflate false positives.
+non_malignant_lineages:
+  - T cell
+  - B cell
+  - Myeloid
+  - NK
+  - Fibroblast
+  - Endothelial
+
+# QC thresholds — deliberately loose for cancer (pitfall, cancer cells are active).
+qc:
+  min_genes: 200
+  max_genes: 6000
+  max_pct_mt: 20
+
+preprocess:
+  n_top_genes: 2000
+  n_pcs: 50
+  batch_key: sample_id               # Harmony corrects on this; UMAP must NOT cluster by it
+  target_sum: 10000
+
+# Three granularity levels. Hypothesis: accuracy high at L1, collapses at L3.
+# Map raw author labels -> each level. Fill in per dataset as labels are confirmed.
+label_levels:
+  coarse:   [T cell, Myeloid, Fibroblast, Epithelial, Endothelial, B cell]
+  medium:   [CD8 T, CD4 T, NK, Macrophage, Monocyte, DC, CAF, Myofibroblast]
+  fine:     [Exhausted CD8, Naive CD8, Effector CD8, Tpex, Tex,
+             SPP1+ TAM, CCL18+ TAM, Inflammatory TAM, Resident macrophage,
+             iCAF, myCAF, matCAF]
+
+tools:
+  python: [celltypist, scgpt]
+  r:      [singler, azimuth, gptcelltype, scatomic]
+
+celltypist:
+  model: Pan_Human_Atlas
+  majority_voting: true
+
+gptcelltype:
+  model: gpt-4
+  n_runs: 3                          # non-deterministic; report modal label + disagreement rate
+  tissuenames: ["lung tumour", "lung"]   # run both to measure cancer-context effect

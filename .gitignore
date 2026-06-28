@@ -216,3 +216,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project data and outputs (keep dir structure via .gitkeep)
+data/raw/*
+!data/raw/.gitkeep
+results/predictions/*
+!results/predictions/.gitkeep
+results/metrics/*
+!results/metrics/.gitkeep
+results/figures/*
+!results/figures/.gitkeep
+
+# Single-cell data formats
+*.h5
+*.h5ad
+*.loom
+*.mtx
+*.mtx.gz
