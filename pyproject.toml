@@ -1,0 +1,29 @@
+[project]
+name = "tme-cell-state-annotation-benchmark"
+version = "0.1.0"
+description = "Benchmark of cell-annotation tools on functional states of non-malignant TME cells"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "pyyaml",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "matplotlib",
+    "seaborn",
+    "anndata",
+    "scanpy",
+    "scvi-tools>=1.1",
+    "celltypist",
+    "scrublet",
+    "harmonypy",
+]
+
+# NOTE: scGPT is intentionally NOT a dependency here. It pins scvi-tools<1.0,
+# which would force the whole env back to 2023 versions (incompatible with
+# modern anndata). scGPT also needs GPU + torch + flash-attn. Install it in a
+# SEPARATE throwaway env when running 03_run_scgpt.py:
+#   uv venv .venv-scgpt --python 3.10 && uv pip install --python .venv-scgpt scgpt
+#
+# zellkonverter / SingleR / Azimuth / GPTCelltype / scATOMIC are R packages —
+# installed separately via `Rscript envs/install_r.R`, not by uv.

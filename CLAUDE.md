@@ -43,19 +43,25 @@ These come from project guide §7.2 and §12 (Common Pitfalls). Getting them wro
 - **GPTCelltype is non-deterministic:** run ≥3× per cluster, report modal label + inter-run disagreement rate as a metric. Run it both with `tissuename="lung tumour"` and `tissuename="lung"` to measure the cancer-context effect.
 - **"Unknown"/abstain is not the same as wrong** — report unknown rate as a separate metric, never fold it into accuracy.
 
-## Environment Setup (project guide §9, when scaffolding)
+## Environment Setup
+
+Python env is managed by **uv** (`pyproject.toml` + `uv.lock`, Python 3.10):
 
 ```bash
-conda create -n tme_benchmark python=3.10
-conda activate tme_benchmark
-pip install scanpy scvi-tools celltypist scrublet harmonypy
+uv sync                       # creates .venv with all Python deps
+uv run python scripts/01_preprocess.py GSE131907   # run anything via uv run
 ```
-```r
-BiocManager::install(c("SingleR", "celldex", "scuttle", "Azimuth"))
-install.packages(c("Seurat", "GPTCelltype"))  # scATOMIC from GitHub
+
+R env (the four R tools) installs from source — slow, compiles Bioconductor + Seurat:
+
+```bash
+Rscript envs/install_r.R      # SingleR, celldex, Azimuth, Seurat, zellkonverter,
+                              # + GPTCelltype & scATOMIC from GitHub
 ```
 
 GPTCelltype needs `OPENAI_API_KEY` in the environment.
+
+**scGPT is deliberately excluded from the uv env** — it pins `scvi-tools<1.0` and would drag everything back to 2023 versions. Install it in a separate throwaway venv only when running `03_run_scgpt.py` (see the note in `pyproject.toml`).
 
 ## Citation Discipline
 
