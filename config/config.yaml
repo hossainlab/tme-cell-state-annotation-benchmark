@@ -67,7 +67,8 @@ integration:
   n_latent: 30
   n_layers: 2
   max_epochs: null                   # null -> scVI auto (fewer epochs for large datasets)
-  batch_size: 512                    # GPU; lower to 256/128 on CUDA OOM (10 GB card)
+  batch_size: 1024                   # bigger = fewer iters, better GPU use; lower on CUDA OOM
+  num_workers: 8                     # dataloader workers feeding the GPU (0 = main thread)
   hvg_flavor: seurat_v3              # operates on raw counts; needs scikit-misc
 
 # Hardware tuning — set to YOUR machine. Defaults sized for the dev box:

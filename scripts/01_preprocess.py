@@ -154,8 +154,15 @@ def normalise_and_embed(adata: sc.AnnData, cfg: dict) -> sc.AnnData:
 
     # Batch integration BEFORE annotation (pitfall #3).
     if n_batches > 1 and ig["method"] == "scvi":
+        import scvi
         import torch
         from scvi.model import SCVI
+
+        # Use the RTX 3080 Tensor Cores, and feed the GPU from multiple workers
+        # so data loading is not the bottleneck (both are perf warnings otherwise).
+        torch.set_float32_matmul_precision("high")
+        scvi.settings.dl_num_workers = ig.get("num_workers",
+                                              cfg["compute"].get("n_cores", 0))
 
         accel = ("gpu" if cfg["compute"].get("gpu") and torch.cuda.is_available()
                  else "cpu")
