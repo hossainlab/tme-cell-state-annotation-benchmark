@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-A single-cell RNA-seq **benchmarking research project** (pre-PhD preprint, targeting bioRxiv), not a software product. The scientific question: do general-purpose cell-annotation tools (SingleR, CellTypist, Azimuth, GPTCelltype, scGPT) correctly identify the *functional states* of non-malignant tumour-microenvironment (TME) cells — exhausted T cells, TAM subtypes, CAF subtypes — versus their high accuracy on healthy reference tissue.
+A single-cell RNA-seq **benchmarking research project** (preprint, targeting bioRxiv), not a software product. The scientific question: do general-purpose cell-annotation tools (SingleR, CellTypist, Azimuth, GPTCelltype, scGPT) correctly identify the *functional states* of non-malignant tumour-microenvironment (TME) cells — exhausted T cells, TAM subtypes, CAF subtypes — versus their high accuracy on healthy reference tissue.
 
 **Spec:** `docs/project_guide.md` is the authoritative scientific spec — read it before implementing. It defines datasets, tools, experimental design, metrics, the step-by-step analysis plan, and known pitfalls. (Note: the guide mentions Snakemake; the actual pipeline is deliberately plain Python + R scripts, no workflow manager.)
 

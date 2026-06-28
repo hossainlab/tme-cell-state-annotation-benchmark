@@ -147,7 +147,7 @@ The complete scientific protocol — motivation, systematic literature review wi
 
 ## Author
 
-**Md. Jubayer Hossain** · pre-PhD research project
+**Md. Jubayer Hossain** · research project
 GitHub: [@hossainlab](https://github.com/hossainlab)
 
 ## License
