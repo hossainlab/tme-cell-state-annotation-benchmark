@@ -18,7 +18,7 @@ dataset <- args[1]
 cfg <- load_config()
 setup_future(cfg)   # parallelise Seurat / Azimuth mapping across cores
 sce <- load_tme_sce(cfg, dataset)
-seurat <- as.Seurat(sce, counts = "X", data = NULL)
+seurat <- as.Seurat(sce, counts = "counts", data = NULL)  # Azimuth/SCT needs raw counts
 
 # TODO: install/point to the Azimuth healthy lung reference ("lungref").
 # RunAzimuth annotates predicted.* columns at several reference levels.

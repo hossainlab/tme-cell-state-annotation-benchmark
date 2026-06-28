@@ -34,15 +34,24 @@ setup_future <- function(cfg) {
   options(future.globals.maxSize = 8 * 1024^3)  # 8 GB
 }
 
-# Load the non-malignant TME .h5ad written by 01_preprocess.py as a
-# SingleCellExperiment (zellkonverter). Seurat-based tools convert from there.
-load_tme_sce <- function(cfg, dataset) {
-  suppressMessages(library(zellkonverter))
+# Load a .h5ad written by 01_preprocess.py as a SingleCellExperiment.
+# zellkonverter names the assays "X" (lognorm, from adata.X) and "counts" (raw,
+# from layers["counts"]). We alias X -> logcounts so SingleR (which expects a
+# "logcounts" assay) works without copying data. Seurat tools use counts + X.
+# `kind` = "tme" (non-malignant subset) or "processed" (all cells, for scATOMIC).
+load_sce <- function(cfg, dataset, kind = "tme") {
+  suppressMessages({ library(zellkonverter); library(SingleCellExperiment) })
   path <- file.path(repo_root(), cfg$paths$data_raw, dataset,
-                    paste0(dataset, "_tme.h5ad"))
+                    paste0(dataset, "_", kind, ".h5ad"))
   if (!file.exists(path)) stop("missing ", path, " — run 01_preprocess.py first")
-  zellkonverter::readH5AD(path)
+  sce <- zellkonverter::readH5AD(path)
+  if (!"logcounts" %in% assayNames(sce) && "X" %in% assayNames(sce))
+    assay(sce, "logcounts") <- assay(sce, "X")
+  sce
 }
+
+# Back-compat alias: existing tool scripts call load_tme_sce(cfg, dataset).
+load_tme_sce <- function(cfg, dataset) load_sce(cfg, dataset, "tme")
 
 # Write predictions in the canonical schema: cell_id, predicted_label.
 write_predictions <- function(cfg, dataset, tool, cell_ids, labels) {

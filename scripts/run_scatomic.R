@@ -18,10 +18,8 @@ dataset <- args[1]
 
 cfg <- load_config()
 # Full processed matrix (NOT the TME-only subset) — scATOMIC needs cancer cells.
-processed <- file.path(repo_root(), cfg$paths$data_raw, dataset,
-                       paste0(dataset, "_processed.h5ad"))
-sce <- readH5AD(processed)
-counts <- as.matrix(assay(sce, "X"))
+sce <- load_sce(cfg, dataset, "processed")
+counts <- as.matrix(assay(sce, "counts"))   # scATOMIC needs RAW counts, not lognorm
 
 results <- run_scATOMIC(counts, mc.cores = n_cores(cfg))
 pred <- create_summary_matrix(prediction_list = results, raw_counts = counts)

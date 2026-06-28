@@ -22,7 +22,7 @@ if (Sys.getenv("OPENAI_API_KEY") == "") stop("set OPENAI_API_KEY")
 cfg <- load_config()
 setup_future(cfg)   # parallelise FindAllMarkers across cores
 sce <- load_tme_sce(cfg, dataset)
-seurat <- as.Seurat(sce, counts = "X", data = "X")
+seurat <- as.Seurat(sce, counts = "counts", data = "X")  # raw counts + lognorm data
 
 seurat <- FindNeighbors(seurat, dims = 1:30)
 seurat <- FindClusters(seurat, resolution = 1.0)
