@@ -61,6 +61,10 @@ Rscript envs/install_r.R      # SingleR, celldex, Azimuth, Seurat, zellkonverter
 
 GPTCelltype needs `OPENAI_API_KEY` in the environment.
 
+**System libs (apt, need sudo) before `install_r.R`:** `libgsl-dev libhdf5-dev libfftw3-dev` — `libgsl-dev` is required to compile the Azimuth dependency chain (DirichletMultinomial → TFBSTools → Signac). scATOMIC pulls `Rmagic` (off CRAN) from GitHub, and Rmagic needs a python backend at runtime: `uv pip install magic-impute`.
+
+**Hardware tuning** lives in the `compute:` block of `config.yaml` (`n_cores`, `gpu`, `device`, `scgpt_batch_size`, `read_chunksize`). Every script reads it: Python sets `sc.settings.n_jobs`; R uses it for `BiocParallel`/`future`/`mc.cores`; the text-matrix reader uses `read_chunksize`. Defaults target a 16-core / RTX 3080 (10 GB) box — change `n_cores` to your physical core count (not threads).
+
 **scGPT is deliberately excluded from the uv env** — it pins `scvi-tools<1.0` and would drag everything back to 2023 versions. Install it in a separate throwaway venv only when running `03_run_scgpt.py` (see the note in `pyproject.toml`).
 
 ## Citation Discipline

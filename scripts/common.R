@@ -17,6 +17,23 @@ load_config <- function() {
   yaml::read_yaml(file.path(repo_root(), "config", "config.yaml"))
 }
 
+# Physical cores to use, from config$compute$n_cores (default 1).
+n_cores <- function(cfg) as.integer(cfg$compute$n_cores %||% 1L)
+
+# Multi-core BiocParallel backend (SingleR, scran, etc.).
+bp_param <- function(cfg) {
+  suppressMessages(library(BiocParallel))
+  MulticoreParam(workers = n_cores(cfg))
+}
+
+# Multi-core future backend for Seurat steps (FindMarkers, Azimuth mapping).
+# Raise the per-worker globals limit — single-cell objects are large.
+setup_future <- function(cfg) {
+  suppressMessages(library(future))
+  future::plan("multicore", workers = n_cores(cfg))
+  options(future.globals.maxSize = 8 * 1024^3)  # 8 GB
+}
+
 # Load the non-malignant TME .h5ad written by 01_preprocess.py as a
 # SingleCellExperiment (zellkonverter). Seurat-based tools convert from there.
 load_tme_sce <- function(cfg, dataset) {

@@ -20,10 +20,11 @@ sce <- load_tme_sce(cfg, dataset)   # expects logcounts assay from preprocessing
 ref_hpca <- celldex::HumanPrimaryCellAtlasData()
 ref_blueprint <- celldex::BlueprintEncodeData()
 
-pred_hpca <- SingleR(test = sce, ref = ref_hpca,
-                     labels = ref_hpca$label.fine, assay.type.test = "logcounts")
-pred_bp <- SingleR(test = sce, ref = ref_blueprint,
-                   labels = ref_blueprint$label.fine, assay.type.test = "logcounts")
+nthreads <- n_cores(cfg)
+pred_hpca <- SingleR(test = sce, ref = ref_hpca, labels = ref_hpca$label.fine,
+                     assay.type.test = "logcounts", num.threads = nthreads)
+pred_bp <- SingleR(test = sce, ref = ref_blueprint, labels = ref_blueprint$label.fine,
+                   assay.type.test = "logcounts", num.threads = nthreads)
 
 write_predictions(cfg, dataset, "singler", colnames(sce), pred_hpca$labels)
 write_predictions(cfg, dataset, "singler_blueprint", colnames(sce), pred_bp$labels)

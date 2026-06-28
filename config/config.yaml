@@ -60,6 +60,17 @@ preprocess:
   batch_key: sample_id               # Harmony corrects on this; UMAP must NOT cluster by it
   target_sum: 10000
 
+# Hardware tuning — set to YOUR machine. Defaults sized for the dev box:
+# AMD Ryzen 9 5950X (16C/32T) + NVIDIA RTX 3080 (10 GB), CUDA.
+# n_cores = PHYSICAL cores: using all 32 threads oversubscribes the RAM-heavy
+# steps (text-matrix read, SingleR) and usually runs slower.
+compute:
+  n_cores: 16
+  gpu: true
+  device: cuda                       # used by scGPT / any GPU step; "cpu" to force off
+  scgpt_batch_size: 32               # fits 10 GB VRAM — lower if you hit CUDA OOM
+  read_chunksize: 4000               # genes per chunk in the text-matrix reader (more RAM = larger)
+
 # Three granularity levels. Hypothesis: accuracy high at L1, collapses at L3.
 # Map raw author labels -> each level. Fill in per dataset as labels are confirmed.
 label_levels:

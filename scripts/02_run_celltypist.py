@@ -20,6 +20,7 @@ from common import load_config, prediction_file, repo_path
 
 def main(dataset: str) -> None:
     cfg = load_config()
+    sc.settings.n_jobs = cfg.get("compute", {}).get("n_cores", 1)
     tme_path = repo_path(cfg["paths"]["data_raw"], dataset, f"{dataset}_tme.h5ad")
     adata = sc.read_h5ad(tme_path)
 

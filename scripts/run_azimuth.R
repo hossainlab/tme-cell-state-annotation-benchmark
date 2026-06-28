@@ -16,6 +16,7 @@ if (length(args) != 1) stop("usage: Rscript run_azimuth.R <dataset>")
 dataset <- args[1]
 
 cfg <- load_config()
+setup_future(cfg)   # parallelise Seurat / Azimuth mapping across cores
 sce <- load_tme_sce(cfg, dataset)
 seurat <- as.Seurat(sce, counts = "X", data = NULL)
 

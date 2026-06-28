@@ -74,7 +74,8 @@ def load_raw(cfg: dict, dataset: str) -> sc.AnnData:
     spec = cfg["datasets"][dataset]
     fmt = spec["format"]
     if fmt == "geo_text_matrix":
-        adata = _read_geo_text_matrix(repo_path(spec["matrix"]))
+        chunksize = cfg.get("compute", {}).get("read_chunksize", 1000)
+        adata = _read_geo_text_matrix(repo_path(spec["matrix"]), chunksize=chunksize)
     elif fmt == "tenx_mtx":
         adata = _read_tenx_mtx(spec)
     else:
@@ -139,6 +140,7 @@ def normalise_and_embed(adata: sc.AnnData, cfg: dict) -> sc.AnnData:
 
 def main(dataset: str) -> None:
     cfg = load_config()
+    sc.settings.n_jobs = cfg.get("compute", {}).get("n_cores", 1)  # PCA/neighbors/UMAP threads
     spec = cfg["datasets"][dataset]
     out_dir = repo_path(cfg["paths"]["data_raw"], dataset)
 

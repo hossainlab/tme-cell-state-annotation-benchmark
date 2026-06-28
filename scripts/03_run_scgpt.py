@@ -24,12 +24,17 @@ def main(dataset: str) -> None:
     tme_path = repo_path(cfg["paths"]["data_raw"], dataset, f"{dataset}_tme.h5ad")
     adata = sc.read_h5ad(tme_path)
 
-    # TODO: implement scGPT zero-shot annotation.
+    comp = cfg.get("compute", {})
+    device = comp.get("device", "cpu") if comp.get("gpu", False) else "cpu"
+    batch_size = comp.get("scgpt_batch_size", 32)  # RTX 3080 10 GB -> ~32; lower on OOM
+
+    # TODO: implement scGPT zero-shot annotation on `device` with `batch_size`.
     #   from scgpt.tasks import embed_data / reference_mapping
     #   load pretrained whole-human checkpoint, map query -> reference labels.
     raise NotImplementedError(
-        "scGPT zero-shot annotation not yet implemented — needs pretrained "
-        "checkpoint + GPU. See https://github.com/bowang-lab/scGPT"
+        f"scGPT zero-shot annotation not yet implemented (device={device}, "
+        f"batch_size={batch_size}) — needs pretrained checkpoint. "
+        "See https://github.com/bowang-lab/scGPT"
     )
 
     labels = ...  # noqa: F841  (predicted labels aligned to adata.obs_names)

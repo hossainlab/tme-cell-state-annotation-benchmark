@@ -23,7 +23,7 @@ processed <- file.path(repo_root(), cfg$paths$data_raw, dataset,
 sce <- readH5AD(processed)
 counts <- as.matrix(assay(sce, "X"))
 
-results <- run_scATOMIC(counts, mc.cores = 4)
+results <- run_scATOMIC(counts, mc.cores = n_cores(cfg))
 pred <- create_summary_matrix(prediction_list = results, raw_counts = counts)
 
 write_predictions(cfg, dataset, "scatomic",
